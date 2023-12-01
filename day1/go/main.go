@@ -36,9 +36,9 @@ func main() {
 	}
 
 	sum := 0
-	for _, lineNums := range lineNums {
-		firstCh := lineNums[0]
-		secondCh := lineNums[len(lineNums)-1]
+	for _, nums := range lineNums {
+		firstCh := nums[0]
+		secondCh := nums[len(nums)-1]
 
 		curr := firstCh*10 + secondCh
 
@@ -46,5 +46,4 @@ func main() {
 	}
 
 	fmt.Println(sum)
-
 }
