@@ -1,3 +1,4 @@
+import math
 import sys
 from collections import defaultdict
 from typing import Iterator
@@ -49,13 +50,19 @@ def is_valid_cube_quantities(set_cubes: dict[str, int]) -> bool:
 
 
 def is_valid_game(game_sets: list[str]) -> bool:
-    for game_set in game_sets:
-        set_cubes = get_set_cubes(game_set)
+    # Sane approach
+    # for game_set in game_sets:
+    #     set_cubes = get_set_cubes(game_set)
 
-        if not is_valid_cube_quantities(set_cubes):
-            return False
+    #     if not is_valid_cube_quantities(set_cubes):
+    #         return False
 
-    return True
+    # return True
+
+    # "Short" approach
+    return all(
+        is_valid_cube_quantities(get_set_cubes(game_set)) for game_set in game_sets
+    )
 
 
 def get_args() -> tuple[int, str]:
@@ -103,7 +110,6 @@ def main():
 
         for line in read_input(mode):
             _, game_info = split_off_game_id(line)
-
             game_sets = get_game_sets(game_info)
 
             max_quant_cubes = defaultdict(int)
@@ -111,13 +117,9 @@ def main():
                 set_cubes = get_set_cubes(game_set)
 
                 for color, quant in set_cubes.items():
-                    if max_quant_cubes[color] < quant:
-                        max_quant_cubes[color] = quant
+                    max_quant_cubes[color] = max(max_quant_cubes[color], quant)
 
-            power_of_cubes = 1
-            for quant in max_quant_cubes.values():
-                power_of_cubes *= quant
-
+            power_of_cubes = math.prod(max_quant_cubes.values())
             sum_cube_powers += power_of_cubes
 
         print(sum_cube_powers)
