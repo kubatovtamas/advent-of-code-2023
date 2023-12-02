@@ -10,9 +10,9 @@ AVAILABLE_CUBES = {
 
 
 def split_off_game_id(line: str) -> tuple[int, str]:
-    game_num, rest_of_line = line.removeprefix("Game ").split(":", 1)
+    game_num, game_info = line.removeprefix("Game ").split(":", 1)
 
-    return int(game_num), rest_of_line
+    return int(game_num), game_info
 
 
 def get_game_sets(line: str) -> list[str]:
@@ -44,9 +44,15 @@ def get_set_cubes(a_set: str) -> dict[str, int]:
     }
 
 
-def valid_cube_quantities(set_cubes: dict[str, int]) -> bool:
-    for color, quant in set_cubes.items():
-        if AVAILABLE_CUBES[color] < quant:
+def is_valid_cube_quantities(set_cubes: dict[str, int]) -> bool:
+    return all(AVAILABLE_CUBES[color] >= quant for color, quant in set_cubes.items())
+
+
+def is_valid_game(game_sets: list[str]) -> bool:
+    for game_set in game_sets:
+        set_cubes = get_set_cubes(game_set)
+
+        if not is_valid_cube_quantities(set_cubes):
             return False
 
     return True
@@ -83,26 +89,38 @@ def main():
         sum_valid_ids = 0
 
         for line in read_input(mode):
-            game_id, rest_of_line = split_off_game_id(line)
+            game_id, game_info = split_off_game_id(line)
 
-            game_sets = get_game_sets(rest_of_line)
+            game_sets = get_game_sets(game_info)
 
-            game_is_valid = True
-            for game_set in game_sets:
-                set_cubes = get_set_cubes(game_set)
-
-                if not valid_cube_quantities(set_cubes):
-                    game_is_valid = False
-                    break
-
-            if game_is_valid:
+            if is_valid_game(game_sets):
                 sum_valid_ids += game_id
 
         print(sum_valid_ids)
 
     if part == 2:
+        sum_cube_powers = 0
+
         for line in read_input(mode):
-            print(line)
+            _, game_info = split_off_game_id(line)
+
+            game_sets = get_game_sets(game_info)
+
+            max_quant_cubes = defaultdict(int)
+            for game_set in game_sets:
+                set_cubes = get_set_cubes(game_set)
+
+                for color, quant in set_cubes.items():
+                    if max_quant_cubes[color] < quant:
+                        max_quant_cubes[color] = quant
+
+            power_of_cubes = 1
+            for quant in max_quant_cubes.values():
+                power_of_cubes *= quant
+
+            sum_cube_powers += power_of_cubes
+
+        print(sum_cube_powers)
 
 
 if __name__ == "__main__":
