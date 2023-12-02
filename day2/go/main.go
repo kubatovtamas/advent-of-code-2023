@@ -132,12 +132,36 @@ func main() {
 		fmt.Println(sumValidIds)
 	}
 
-	// if part == 2 {
-	// 	scanner := bufio.NewScanner(file)
+	if part == 2 {
+		sumCubePowers := 0
 
-	// 	for scanner.Scan() {
-	// 		line := scanner.Text()
-	// 		fmt.Println(line)
-	// 	}
-	// }
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			_, restOfLine := splitOffGameId(line)
+
+			gameSets := getGameSets(restOfLine)
+			maxQuantCubes := make(map[string]int)
+			for _, gameSet := range gameSets {
+				setCubes := getSetCubes(gameSet)
+
+				for color, quant := range setCubes {
+					if maxQuantCubes[color] < quant {
+						maxQuantCubes[color] = quant
+					}
+				}
+
+			}
+
+			powerOfCubes := 1
+			for _, quant := range maxQuantCubes {
+				powerOfCubes *= quant
+			}
+
+			sumCubePowers += powerOfCubes
+		}
+
+		fmt.Println(sumCubePowers)
+	}
 }
