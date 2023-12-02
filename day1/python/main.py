@@ -1,4 +1,5 @@
-from typing import Callable
+import sys
+from typing import Callable, Iterator
 
 strCompFn = Callable[[str, str], bool]
 strShortenFn = Callable[[str], str]
@@ -49,15 +50,49 @@ def extract_num(line: str, str_compare: strCompFn, str_shorten: strShortenFn) ->
     raise RuntimeError(f"no number could be extracted from {line}")
 
 
+def get_args() -> tuple[int, str]:
+    if len(sys.argv) != 3:
+        print("Usage: python main.py <1 or 2> <example or full>")
+        sys.exit(1)
+
+    part = int(sys.argv[1])
+    if part not in (1, 2):
+        print("First argument must be either 1 or 2")
+        sys.exit(1)
+
+    mode = sys.argv[2]
+    if mode not in ("example", "full"):
+        print("Second argument must be either example or full")
+        sys.exit(1)
+
+    return part, mode
+
+
+def read_input(name: str) -> Iterator[str]:
+    with open(f"../input/{name}", "r") as f:
+        for line in f:
+            yield line.rstrip()
+
+
 def main():
-    res = 0
-    with open("../input/full", "r") as f:
-        while line := f.readline().rstrip():
+    part, mode = get_args()
+
+    if part == 1:
+        res = 0
+        for line in read_input(mode):
+            line_nums = [int(ch) for ch in line if ch.isdigit()]
+            res += line_nums[0] * 10 + line_nums[-1]
+
+        print(res)
+
+    if part == 2:
+        res = 0
+        for line in read_input(mode):
             first_num = extract_num(line, str.startswith, lambda line: line[1:])
             last_num = extract_num(line, str.endswith, lambda line: line[:-1])
             res += first_num * 10 + last_num
 
-    print(res)
+        print(res)
 
 
 if __name__ == "__main__":

@@ -72,17 +72,22 @@ func extractNum(line string, stringCompare stringComparisonFunc, stringShorten m
 	return 0, fmt.Errorf("no number could be extracted from %s", line)
 }
 
-func getArg() int {
-	if len(os.Args) != 2 {
-		log.Fatal("Usage: go run main.go <1 or 2>")
+func getArgs() (int, string) {
+	if len(os.Args) != 3 {
+		log.Fatal("Usage: go run main.go <1 or 2> <full or example>")
 	}
 
-	arg, err := strconv.Atoi(os.Args[1])
-	if err != nil || (arg != 1 && arg != 2) {
-		log.Fatal("Argument must be either 1 or 2")
+	part, err := strconv.Atoi(os.Args[1])
+	if err != nil || (part != 1 && part != 2) {
+		log.Fatal("First argument must be either 1 or 2")
 	}
 
-	return arg
+	mode := os.Args[2]
+	if mode != "example" && mode != "full" {
+		log.Fatal("Second argument must be either example or full")
+	}
+
+	return part, mode
 }
 
 func readInput(name string) *os.File {
@@ -96,9 +101,9 @@ func readInput(name string) *os.File {
 }
 
 func main() {
-	part := getArg()
+	part, mode := getArgs()
 
-	file := readInput("full")
+	file := readInput(mode)
 	defer file.Close()
 
 	if part == 1 {
@@ -145,5 +150,4 @@ func main() {
 
 		fmt.Println(sum)
 	}
-
 }
