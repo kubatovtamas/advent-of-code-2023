@@ -6,11 +6,17 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"unicode"
 )
 
-var M int
-var N int
-var pad int = 2
+type Row []rune
+type Matrix struct {
+	Data              []Row
+	N                 int
+	M                 int
+	Pad               int
+	MatrixIdxToUpdate int
+}
 
 func getArgs() (int, string) {
 	if len(os.Args) != 3 {
@@ -23,9 +29,9 @@ func getArgs() (int, string) {
 	}
 
 	mode := os.Args[2]
-	if mode != "example" && mode != "full" {
-		log.Fatal("Second argument must be either example or full")
-	}
+	// if mode != "example" && mode != "full" {
+	// 	log.Fatal("Second argument must be either example or full")
+	// }
 
 	return part, mode
 }
@@ -40,27 +46,92 @@ func readInput(name string) *os.File {
 	return file
 }
 
-func initMatrix(line string) [][]rune {
-	N = len(line)
-	M = 3
+func padLineLeftAndRight(line string, pad int) []rune {
+	lineRunes := []rune(line)
+	paddedLength := len(lineRunes) + pad
+	paddedLine := make([]rune, paddedLength)
 
-	matrix := make([][]rune, M)
-	for i := range matrix {
-		matrix[i] = make([]rune, N+pad) // pad left and right
+	copy(paddedLine[pad/2:], lineRunes)
+
+	return paddedLine
+}
+
+func runeSliceToInt(runes []rune) int {
+	result := 0
+	for _, r := range runes {
+		if r < '0' || r > '9' {
+			log.Fatalf("invalid rune: %q is not a digit", r)
+		}
+		result = result*10 + int(r-'0')
+	}
+	return result
+}
+
+func getSurroundingIndicesForNum(begin, end int) [][]int {
+	length := end - begin + 1
+
+	a := make([]int, length+2)
+	c := make([]int, length+2)
+
+	for i := 0; i < length+2; i++ {
+		a[i] = begin - 1 + i
+		c[i] = a[i]
 	}
 
-	return matrix
+	b := []int{begin - 1, end + 1}
+
+	return [][]int{a, b, c}
 }
 
-func slideMatrix(matrix [][]rune) {
-	matrix[0], matrix[1], matrix[2] = matrix[1], matrix[2], make([]rune, N)
+func isValidSymbol(r rune) bool {
+	if r != '\u0000' && r != '.' {
+		return true
+	}
+
+	return false
+}
+func checkSurroundingsHaveSymbol(matrix *Matrix, surroundingIndices [][]int) bool {
+	for rowIdx, row := range surroundingIndices {
+		for _, colIdx := range row {
+			if isValidSymbol(matrix.Data[rowIdx][colIdx]) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
-func printMatrix(matrix [][]rune) {
-	for _, row := range matrix {
+func newMatrix(line string) *Matrix {
+	width := len(line)
+	height := 3
+
+	matrix := Matrix{
+		Data:              make([]Row, height),
+		N:                 width,
+		M:                 height,
+		Pad:               2,
+		MatrixIdxToUpdate: 2,
+	}
+
+	for i := range matrix.Data {
+		matrix.Data[i] = make(Row, (matrix.N + matrix.Pad))
+	}
+
+	return &matrix
+}
+
+func (m *Matrix) slide() {
+	m.Data[0], m.Data[1] = m.Data[1], m.Data[2]
+	m.Data[2] = make([]rune, m.N)
+}
+
+func (m Matrix) print() {
+	emptyWhiteBox := '\u25A1'
+	for _, row := range m.Data {
 		for _, ch := range row {
 			if ch == '\u0000' {
-				fmt.Printf("X")
+				fmt.Printf("%c", emptyWhiteBox)
 			} else {
 				fmt.Printf("%c", ch)
 			}
@@ -70,14 +141,8 @@ func printMatrix(matrix [][]rune) {
 	fmt.Println()
 }
 
-func padLineLeftAndRight(line string) []rune {
-	lineRunes := []rune(line)
-	paddedLength := len(lineRunes) + pad
-	paddedLine := make([]rune, paddedLength)
-
-	copy(paddedLine[1:], lineRunes)
-
-	return paddedLine
+func (m *Matrix) update(withRow Row) {
+	m.Data[m.MatrixIdxToUpdate] = withRow
 }
 
 func main() {
@@ -87,45 +152,87 @@ func main() {
 	defer file.Close()
 
 	if part == 1 {
-		var matrix [][]rune
+		sum := 0
+		var matrix *Matrix
 		var firstLine string
-		matrixIdxToUpdate := 2
 
 		scanner := bufio.NewScanner(file)
 
-		// 1. Init matrix, pad first line
+		// 1. Init matrix
 		if scanner.Scan() {
 			firstLine = scanner.Text()
-			matrix = initMatrix(firstLine)
+			matrix = newMatrix(firstLine)
 		}
 
-		matrix[matrixIdxToUpdate] = padLineLeftAndRight(firstLine)
-		slideMatrix(matrix)
+		// 2. Set up the padding of first row of the matrix
+		matrix.update(padLineLeftAndRight(firstLine, matrix.Pad))
+		matrix.slide()
 
 		do := true
+		lineNum := 1
 		for {
 			var line string
 
+			// 3. Read lines of input, do one more padding line when no more input
 			if scanner.Scan() {
 				line = scanner.Text()
 			} else {
-				line = string(make([]rune, N))
-				matrix[matrixIdxToUpdate] = make([]rune, N)
+				line = string(make([]rune, matrix.N))
+				matrix.update(make(Row, matrix.N))
 
 				do = false
 			}
 
-			matrix[matrixIdxToUpdate] = padLineLeftAndRight(line)
-			printMatrix(matrix)
+			// 4. Update the matrix with a new line
+			matrix.update(padLineLeftAndRight(line, matrix.Pad))
 
-			// do the processing here
+			// 5. Check the middle line of the matrix
+			var numBegin int
+			var numEnd int
+			isReadingNum := false
+			buffer := make([]rune, 0)
+			for i := matrix.Pad / 2; i <= matrix.N+matrix.Pad/2; i++ {
+				ch := matrix.Data[1][i]
 
-			slideMatrix(matrix)
+				if !isReadingNum && unicode.IsDigit(ch) {
+					// Start reading a congiguous number
+					isReadingNum = true
+					numBegin = i
+				}
+
+				if isReadingNum {
+					if unicode.IsDigit(ch) {
+						// Keep adding to the buffer, it's still the same number
+						buffer = append(buffer, ch)
+					} else {
+						// End of a contiguous number
+						isReadingNum = false
+						numEnd = i - 1
+
+						surroundings := getSurroundingIndicesForNum(numBegin, numEnd)
+						hasSymbolSurrounding := checkSurroundingsHaveSymbol(matrix, surroundings)
+
+						if hasSymbolSurrounding {
+							currentNum := runeSliceToInt(buffer)
+							sum += currentNum
+						}
+
+						// always empty the buffer
+						buffer = make([]rune, 0)
+					}
+				}
+			}
+
+			// 6. Slide the matrix one row
+			matrix.slide()
 
 			if !do {
 				break
 			}
+			lineNum++
 		}
+
+		fmt.Println("SOLUTION:", sum)
 	}
 
 	if part == 2 {
