@@ -102,6 +102,66 @@ func checkSurroundingsHaveSymbol(matrix *Matrix, surroundingIndices [][]int) boo
 	return false
 }
 
+func contains(slice []int, num int) bool {
+	for _, v := range slice {
+		if v == num {
+			return true
+		}
+	}
+	return false
+}
+
+func fetchNumbersFromSurroundings(matrix *Matrix, surroundingIndices [][]int) []int {
+	foundNums := make([]int, 0)
+
+	for rowIdx, row := range surroundingIndices {
+		takenIndices := make([]int, 0)
+		for _, colIdx := range row {
+			if unicode.IsDigit(matrix.Data[rowIdx][colIdx]) && !contains(takenIndices, colIdx) {
+				beginPointer := colIdx
+				endPointer := colIdx
+
+				// find beginning of number
+				for {
+					beginPointer--
+
+					if !unicode.IsDigit(matrix.Data[rowIdx][beginPointer]) {
+						break
+					}
+				}
+
+				// find end of number
+				for {
+					endPointer++
+
+					if !unicode.IsDigit(matrix.Data[rowIdx][endPointer]) {
+						break
+					}
+
+				}
+
+				beginPointer++ // begin is inclusive index, add one
+
+				currNum := runeSliceToInt(matrix.Data[rowIdx][beginPointer:endPointer])
+
+				// save indices to avoid recalculating a number
+				for i := beginPointer; i < endPointer; i++ {
+					takenIndices = append(takenIndices, i)
+				}
+
+				foundNums = append(foundNums, currNum)
+
+				// short circuit: we only need 2 numbers for the gear
+				if len(foundNums) == 2 {
+					return foundNums
+				}
+			}
+		}
+	}
+
+	return foundNums
+}
+
 func newMatrix(line string) *Matrix {
 	width := len(line)
 	height := 3
@@ -191,7 +251,7 @@ func main() {
 			var numEnd int
 			isReadingNum := false
 			buffer := make([]rune, 0)
-			for i := matrix.Pad / 2; i <= matrix.N+matrix.Pad/2; i++ {
+			for i := matrix.Pad / 2; i <= (matrix.N + (matrix.Pad / 2)); i++ {
 				ch := matrix.Data[1][i]
 
 				if !isReadingNum && unicode.IsDigit(ch) {
@@ -236,11 +296,67 @@ func main() {
 	}
 
 	if part == 2 {
+		sum := 0
+		var matrix *Matrix
+		var firstLine string
+
 		scanner := bufio.NewScanner(file)
 
-		for scanner.Scan() {
-			line := scanner.Text()
-			fmt.Println(line)
+		// 1. Init matrix
+		if scanner.Scan() {
+			firstLine = scanner.Text()
+			matrix = newMatrix(firstLine)
 		}
+
+		// 2. Set up the padding of first row of the matrix
+		matrix.update(padLineLeftAndRight(firstLine, matrix.Pad))
+		matrix.slide()
+
+		do := true
+		lineNum := 1
+		for {
+			var line string
+
+			// 3. Read lines of input, do one more padding line when no more input
+			if scanner.Scan() {
+				line = scanner.Text()
+			} else {
+				line = string(make([]rune, matrix.N))
+				matrix.update(make(Row, matrix.N))
+
+				do = false
+			}
+
+			// 4. Update the matrix with a new line
+			matrix.update(padLineLeftAndRight(line, matrix.Pad))
+
+			// 5. Check the middle line of the matrix
+			for i := matrix.Pad / 2; i <= (matrix.N + (matrix.Pad / 2)); i++ {
+				ch := matrix.Data[1][i]
+
+				if ch == '*' {
+					surroundings := getSurroundingIndicesForNum(i, i)
+
+					surroundingNumbers := fetchNumbersFromSurroundings(matrix, surroundings)
+
+					if len(surroundingNumbers) == 2 {
+						currGearRatio := surroundingNumbers[0] * surroundingNumbers[1]
+
+						sum += currGearRatio
+					}
+				}
+
+			}
+
+			// 6. Slide the matrix one row
+			matrix.slide()
+
+			if !do {
+				break
+			}
+			lineNum++
+		}
+
+		fmt.Println("SOLUTION:", sum)
 	}
 }
