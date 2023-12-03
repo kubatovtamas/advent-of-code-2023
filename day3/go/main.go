@@ -10,6 +10,7 @@ import (
 
 var M int
 var N int
+var pad int = 2
 
 func getArgs() (int, string) {
 	if len(os.Args) != 3 {
@@ -45,7 +46,7 @@ func initMatrix(line string) [][]rune {
 
 	matrix := make([][]rune, M)
 	for i := range matrix {
-		matrix[i] = make([]rune, N)
+		matrix[i] = make([]rune, N+pad) // pad left and right
 	}
 
 	return matrix
@@ -58,19 +59,25 @@ func slideMatrix(matrix [][]rune) {
 func printMatrix(matrix [][]rune) {
 	for _, row := range matrix {
 		for _, ch := range row {
-			fmt.Printf("%c", ch)
+			if ch == '\u0000' {
+				fmt.Printf("X")
+			} else {
+				fmt.Printf("%c", ch)
+			}
 		}
 		fmt.Println()
 	}
 	fmt.Println()
 }
 
-func updateMatrix(matrix [][]rune, line string, rowIdx int) {
-	matrix[rowIdx] = []rune(line)
+func padLineLeftAndRight(line string) []rune {
+	lineRunes := []rune(line)
+	paddedLength := len(lineRunes) + pad
+	paddedLine := make([]rune, paddedLength)
 
-	if rowIdx == 3 {
-		slideMatrix(matrix)
-	}
+	copy(paddedLine[1:], lineRunes)
+
+	return paddedLine
 }
 
 func main() {
@@ -81,30 +88,43 @@ func main() {
 
 	if part == 1 {
 		var matrix [][]rune
-		matrixIdxToUpdate := 0
+		var firstLine string
+		matrixIdxToUpdate := 2
 
-		currLine := 1
 		scanner := bufio.NewScanner(file)
 
-		for scanner.Scan() {
-			line := scanner.Text()
+		// 1. Init matrix, pad first line
+		if scanner.Scan() {
+			firstLine = scanner.Text()
+			matrix = initMatrix(firstLine)
+		}
 
-			// Read first line and initialize the matrix
-			if currLine == 1 {
-				matrix = initMatrix(line)
+		matrix[matrixIdxToUpdate] = padLineLeftAndRight(firstLine)
+		slideMatrix(matrix)
+
+		do := true
+		for {
+			var line string
+
+			if scanner.Scan() {
+				line = scanner.Text()
+			} else {
+				line = string(make([]rune, N))
+				matrix[matrixIdxToUpdate] = make([]rune, N)
+
+				do = false
 			}
-			matrix[matrixIdxToUpdate] = []rune(line)
-			// updateMatrix(matrix, line, matrixIdxToUpdate)
 
+			matrix[matrixIdxToUpdate] = padLineLeftAndRight(line)
 			printMatrix(matrix)
 
-			matrixIdxToUpdate++
-			if matrixIdxToUpdate >= 3 {
-				slideMatrix(matrix)
-				matrixIdxToUpdate = 2
-			}
+			// do the processing here
 
-			currLine++
+			slideMatrix(matrix)
+
+			if !do {
+				break
+			}
 		}
 	}
 
