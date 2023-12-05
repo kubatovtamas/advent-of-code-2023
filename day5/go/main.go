@@ -6,9 +6,13 @@ import (
 	"log"
 	"math"
 	"os"
+
+	// "runtime"
+	// "runtime/pprof"
+	"sort"
 	"strconv"
 	"strings"
-	// "strings"
+	"sync"
 )
 
 type State int
@@ -40,7 +44,7 @@ type MappingInterval struct {
 
 type SeedInterval struct {
 	begin  int
-	lenght int
+	length int
 }
 
 func getArgs() (int, string) {
@@ -70,29 +74,6 @@ func readInput(name string) *os.File {
 
 	return file
 }
-
-// func (s State) String() string {
-// 	switch s {
-// 	case ListSeeds:
-// 		return "ListSeeds"
-// 	case SeedToSoil:
-// 		return "SeedToSoil"
-// 	case SoilToFertilizer:
-// 		return "SoilToFertilizer"
-// 	case FertilizerToWater:
-// 		return "FertilizerToWater"
-// 	case WaterToLight:
-// 		return "WaterToLight"
-// 	case LightToTemperature:
-// 		return "LightToTemperature"
-// 	case TemperatureToHumidity:
-// 		return "TemperatureToHumidity"
-// 	case HumidityToLocation:
-// 		return "HumidityToLocation"
-// 	default:
-// 		return "Unknown"
-// 	}
-// }
 
 func getLineType(line string) (lineType LineType) {
 	if line[:5] == "seeds" {
@@ -132,7 +113,7 @@ func parseSeedsPart2(line string) []SeedInterval {
 
 	seedIntervals := make([]SeedInterval, 0)
 	for i := 0; i < len(intSlice)-1; i += 2 {
-		seedIntervals = append(seedIntervals, SeedInterval{begin: intSlice[i], lenght: intSlice[i+1]})
+		seedIntervals = append(seedIntervals, SeedInterval{begin: intSlice[i], length: intSlice[i+1]})
 	}
 
 	return seedIntervals
@@ -147,14 +128,27 @@ func updateMappingsForCurrState(dest, src, length int, state State, mappings *[7
 }
 
 func getNextValueForKey(key int, mappings []MappingInterval) int {
-	for _, interval := range mappings {
+	low, high := 0, len(mappings)-1
+
+	for low <= high {
+		mid := low + (high-low)/2
+		interval := mappings[mid]
+
 		if interval.src <= key && key < interval.src+interval.length {
 			diff := key - interval.src
 			return interval.dest + diff
 		}
+
+		if key < interval.src {
+			high = mid - 1
+		} else {
+			low = mid + 1
+		}
 	}
+
 	return key
 }
+
 func getMinLocationForSeedsPart1(seeds []int, mappings [7][]MappingInterval) int {
 	min := math.MaxInt32
 	for _, seed := range seeds {
@@ -171,25 +165,98 @@ func getMinLocationForSeedsPart1(seeds []int, mappings [7][]MappingInterval) int
 	return min
 }
 
-func getMinLocationForSeedsPart2(seeds []SeedInterval, mappings [7][]MappingInterval) int {
-	min := math.MaxInt32
-	for _, seedInterval := range seeds {
-		for i := seedInterval.begin; i < seedInterval.begin+seedInterval.lenght; i++ {
-			key := i
+func calculateMinForSeedInterval(seedInterval SeedInterval, mappings [7][]MappingInterval) int {
+	var wg sync.WaitGroup
+	minCh := make(chan int)
 
-			for _, currMappings := range mappings {
-				key = getNextValueForKey(key, currMappings)
+	// Number of sub-intervals
+	const numSubIntervals = 4
+	subIntervalLength := seedInterval.length / numSubIntervals
+
+	for i := 0; i < numSubIntervals; i++ {
+		begin := seedInterval.begin + i*subIntervalLength
+		end := begin + subIntervalLength
+		if i == numSubIntervals-1 {
+			end = seedInterval.begin + seedInterval.length // Ensure the last interval goes up to the end
+		}
+
+		wg.Add(1)
+		go func(begin, end int) {
+			defer wg.Done()
+
+			subMin := math.MaxInt32
+			for i := begin; i < end; i++ {
+				key := i
+
+				for _, currMappings := range mappings {
+					key = getNextValueForKey(key, currMappings)
+				}
+
+				if key < subMin {
+					subMin = key
+				}
 			}
 
-			if key < min {
-				min = key
-			}
+			minCh <- subMin
+		}(begin, end)
+	}
+
+	go func() {
+		wg.Wait()
+		close(minCh)
+	}()
+
+	overallMin := math.MaxInt32
+	for minVal := range minCh {
+		if minVal < overallMin {
+			overallMin = minVal
 		}
 	}
+
+	return overallMin
+}
+
+func getMinLocationForSeedsPart2(seeds []SeedInterval, mappings [7][]MappingInterval) int {
+	var wg sync.WaitGroup
+	minCh := make(chan int)
+
+	for _, seedInterval := range seeds {
+		wg.Add(1)
+
+		go func(seedInterval SeedInterval) {
+			defer wg.Done()
+
+			localMin := calculateMinForSeedInterval(seedInterval, mappings)
+			minCh <- localMin
+		}(seedInterval)
+	}
+
+	go func() {
+		wg.Wait()
+		close(minCh)
+	}()
+
+	min := math.MaxInt32
+	for minVal := range minCh {
+		if minVal < min {
+			min = minVal
+		}
+	}
+
 	return min
 }
 
 func main() {
+	// cpuFile, err := os.Create("cpu.prof")
+	// if err != nil {
+	// 	log.Fatal("could not create CPU profile: ", err)
+	// }
+	// defer cpuFile.Close()
+	// if err := pprof.StartCPUProfile(cpuFile); err != nil {
+	// 	log.Fatal("could not start CPU profile: ", err)
+	// }
+	// defer pprof.StopCPUProfile()
+
 	part, mode := getArgs()
 
 	file := readInput(mode)
@@ -234,7 +301,7 @@ func main() {
 
 	if part == 2 {
 		var seeds []SeedInterval
-		mappings := [7][]MappingInterval{}
+		mappingsArr := [7][]MappingInterval{}
 
 		currentState := ListSeeds
 
@@ -260,12 +327,28 @@ func main() {
 				nums := stringToIntSlice(line)
 				dest, src, length := nums[0], nums[1], nums[2]
 
-				updateMappingsForCurrState(dest, src, length, currentState, &mappings)
+				updateMappingsForCurrState(dest, src, length, currentState, &mappingsArr)
 			}
 		}
 
-		minLocation := getMinLocationForSeedsPart2(seeds, mappings)
+		for _, mappings := range mappingsArr {
+			sort.Slice(mappings, func(i, j int) bool {
+				return mappings[i].src < mappings[j].src
+			})
+		}
 
-		fmt.Println("SOLUTION:", minLocation)
+		minLocation := getMinLocationForSeedsPart2(seeds, mappingsArr)
+
+		fmt.Println("SOLUTION:", minLocation) // 27992443
 	}
+
+	// memFile, err := os.Create("mem.prof")
+	// if err != nil {
+	// 	log.Fatal("could not create memory profile: ", err)
+	// }
+	// defer memFile.Close()
+	// runtime.GC() // run garbage collection to get up-to-date statistics
+	// if err := pprof.WriteHeapProfile(memFile); err != nil {
+	// 	log.Fatal("could not write memory profile: ", err)
+	// }
 }
