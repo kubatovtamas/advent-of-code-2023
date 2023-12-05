@@ -6,11 +6,37 @@ import (
 	"log"
 	"math"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	// "strings"
 )
+
+type State int
+
+const (
+	ListSeeds State = iota
+	SeedToSoil
+	SoilToFertilizer
+	FertilizerToWater
+	WaterToLight
+	LightToTemperature
+	TemperatureToHumidity
+	HumidityToLocation
+)
+
+type LineType int
+
+const (
+	SeedsLine LineType = iota
+	MapLine
+	NumLine
+)
+
+type MappingInterval struct {
+	src    int
+	dest   int
+	length int
+}
 
 func getArgs() (int, string) {
 	if len(os.Args) != 3 {
@@ -39,26 +65,6 @@ func readInput(name string) *os.File {
 
 	return file
 }
-
-type State int
-type LineType int
-
-const (
-	ListSeeds State = iota
-	SeedToSoil
-	SoilToFertilizer
-	FertilizerToWater
-	WaterToLight
-	LightToTemperature
-	TemperatureToHumidity
-	HumidityToLocation
-)
-
-const (
-	SeedsLine LineType = iota
-	MapLine
-	NumLine
-)
 
 func (s State) String() string {
 	switch s {
@@ -115,55 +121,39 @@ func parseSeeds(line string) []int {
 	return strToIntSlice(numsPart)
 }
 
-func initSeeds(line string) map[int]int {
-	seeds := parseSeeds(line)
-	seedToLoc := make(map[int]int)
+func updateMappingsForCurrState(dest, src, length int, state State, mappings *[7][]MappingInterval) {
+	nth := int(state) - 1 // will never receive ListSeeds map, needed for correct indexing
+	mappingForCurrState := &mappings[nth]
 
+	newMapping := MappingInterval{src, dest, length}
+	*mappingForCurrState = append(*mappingForCurrState, newMapping)
+}
+
+func getNextValueForKey(key int, mappings []MappingInterval) int {
+	for _, interval := range mappings {
+		if interval.src <= key && key < interval.src+interval.length {
+			diff := key - interval.src
+			return interval.dest + diff
+		}
+	}
+	return key
+}
+
+func getMinLocationForSeeds(seeds []int, mappings [7][]MappingInterval) int {
+	min := math.MaxInt32
 	for _, seed := range seeds {
-		seedToLoc[seed] = -1
-	}
+		key := seed
 
-	return seedToLoc
-}
-
-func updateMapForCurrState(dest, src, length int, state State, maps [7]*map[int]int) {
-	nthMap := int(state) - 1 // will never receive ListSeeds map, needed for correct indexing
-
-	mapForCurrentState := maps[nthMap]
-
-	for i := 0; i < length; i++ {
-		(*mapForCurrentState)[src+i] = dest + i
-	}
-}
-
-func prettyPrintMaps(maps [7]*map[int]int) {
-	mapNames := []string{
-		"SeedToSoil",
-		"SoilToFertilizer",
-		"FertilizerToWater",
-		"WaterToLight",
-		"LightToTemperature",
-		"TemperatureToHumidity",
-		"HumidityToLocation",
-	}
-
-	for i, m := range maps {
-		fmt.Println(mapNames[i] + ":")
-		// Collect and sort the keys
-		var keys []int
-		for key := range *m {
-			keys = append(keys, key)
+		for _, currMappings := range mappings {
+			key = getNextValueForKey(key, currMappings)
 		}
-		sort.Ints(keys)
 
-		// Print sorted key-value pairs
-		for _, key := range keys {
-			fmt.Printf("  %d -> %d\n", key, (*m)[key])
+		if key < min {
+			min = key
 		}
-		fmt.Println()
 	}
+	return min
 }
-
 func main() {
 	part, mode := getArgs()
 
@@ -171,24 +161,8 @@ func main() {
 	defer file.Close()
 
 	if part == 1 {
-		var seedToLocation map[int]int
-
-		seedToSoil := make(map[int]int)
-		soilToFertilizer := make(map[int]int)
-		fertilizerToWater := make(map[int]int)
-		waterToLight := make(map[int]int)
-		lightToTemperature := make(map[int]int)
-		temperatureToHumidity := make(map[int]int)
-		humidityToLocation := make(map[int]int)
-		maps := [7]*map[int]int{
-			&seedToSoil,
-			&soilToFertilizer,
-			&fertilizerToWater,
-			&waterToLight,
-			&lightToTemperature,
-			&temperatureToHumidity,
-			&humidityToLocation,
-		}
+		var seeds []int
+		mappings := [7][]MappingInterval{}
 
 		currentState := ListSeeds
 
@@ -204,7 +178,7 @@ func main() {
 
 			switch lineType {
 			case SeedsLine:
-				seedToLocation = initSeeds(line)
+				seeds = parseSeeds(line)
 
 			case MapLine:
 				currentState++
@@ -214,31 +188,12 @@ func main() {
 				nums := strToIntSlice(line)
 				dest, src, length := nums[0], nums[1], nums[2]
 
-				updateMapForCurrState(dest, src, length, currentState, maps)
+				updateMappingsForCurrState(dest, src, length, currentState, &mappings)
 			}
 		}
 
-		// prettyPrintMaps(maps)
+		minLocation := getMinLocationForSeeds(seeds, mappings)
 
-		for seed := range seedToLocation {
-			key := seed
-
-			for _, currMap := range maps {
-				if newKey, ok := (*currMap)[key]; ok {
-					key = newKey
-				}
-			}
-
-			seedToLocation[seed] = key
-		}
-
-		min := math.MaxInt32
-		for _, v := range seedToLocation {
-			if v < min {
-				min = v
-			}
-		}
-
-		fmt.Println("SOLUTION:", min)
+		fmt.Println("SOLUTION:", minLocation)
 	}
 }
