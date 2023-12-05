@@ -38,6 +38,11 @@ type MappingInterval struct {
 	length int
 }
 
+type SeedInterval struct {
+	begin  int
+	lenght int
+}
+
 func getArgs() (int, string) {
 	if len(os.Args) != 3 {
 		log.Fatal("Usage: go run main.go <1 or 2> <full or example>")
@@ -66,28 +71,28 @@ func readInput(name string) *os.File {
 	return file
 }
 
-func (s State) String() string {
-	switch s {
-	case ListSeeds:
-		return "ListSeeds"
-	case SeedToSoil:
-		return "SeedToSoil"
-	case SoilToFertilizer:
-		return "SoilToFertilizer"
-	case FertilizerToWater:
-		return "FertilizerToWater"
-	case WaterToLight:
-		return "WaterToLight"
-	case LightToTemperature:
-		return "LightToTemperature"
-	case TemperatureToHumidity:
-		return "TemperatureToHumidity"
-	case HumidityToLocation:
-		return "HumidityToLocation"
-	default:
-		return "Unknown"
-	}
-}
+// func (s State) String() string {
+// 	switch s {
+// 	case ListSeeds:
+// 		return "ListSeeds"
+// 	case SeedToSoil:
+// 		return "SeedToSoil"
+// 	case SoilToFertilizer:
+// 		return "SoilToFertilizer"
+// 	case FertilizerToWater:
+// 		return "FertilizerToWater"
+// 	case WaterToLight:
+// 		return "WaterToLight"
+// 	case LightToTemperature:
+// 		return "LightToTemperature"
+// 	case TemperatureToHumidity:
+// 		return "TemperatureToHumidity"
+// 	case HumidityToLocation:
+// 		return "HumidityToLocation"
+// 	default:
+// 		return "Unknown"
+// 	}
+// }
 
 func getLineType(line string) (lineType LineType) {
 	if line[:5] == "seeds" {
@@ -100,7 +105,7 @@ func getLineType(line string) (lineType LineType) {
 	return NumLine
 }
 
-func strToIntSlice(str string) []int {
+func stringToIntSlice(str string) []int {
 	strs := strings.Split(str, " ")
 
 	nums := make([]int, len(strs))
@@ -116,9 +121,21 @@ func strToIntSlice(str string) []int {
 	return nums
 }
 
-func parseSeeds(line string) []int {
+func parseSeedsPart1(line string) []int {
 	numsPart := line[7:]
-	return strToIntSlice(numsPart)
+	return stringToIntSlice(numsPart)
+}
+
+func parseSeedsPart2(line string) []SeedInterval {
+	numsPart := line[7:]
+	intSlice := stringToIntSlice(numsPart)
+
+	seedIntervals := make([]SeedInterval, 0)
+	for i := 0; i < len(intSlice)-1; i += 2 {
+		seedIntervals = append(seedIntervals, SeedInterval{begin: intSlice[i], lenght: intSlice[i+1]})
+	}
+
+	return seedIntervals
 }
 
 func updateMappingsForCurrState(dest, src, length int, state State, mappings *[7][]MappingInterval) {
@@ -138,8 +155,7 @@ func getNextValueForKey(key int, mappings []MappingInterval) int {
 	}
 	return key
 }
-
-func getMinLocationForSeeds(seeds []int, mappings [7][]MappingInterval) int {
+func getMinLocationForSeedsPart1(seeds []int, mappings [7][]MappingInterval) int {
 	min := math.MaxInt32
 	for _, seed := range seeds {
 		key := seed
@@ -154,6 +170,25 @@ func getMinLocationForSeeds(seeds []int, mappings [7][]MappingInterval) int {
 	}
 	return min
 }
+
+func getMinLocationForSeedsPart2(seeds []SeedInterval, mappings [7][]MappingInterval) int {
+	min := math.MaxInt32
+	for _, seedInterval := range seeds {
+		for i := seedInterval.begin; i < seedInterval.begin+seedInterval.lenght; i++ {
+			key := i
+
+			for _, currMappings := range mappings {
+				key = getNextValueForKey(key, currMappings)
+			}
+
+			if key < min {
+				min = key
+			}
+		}
+	}
+	return min
+}
+
 func main() {
 	part, mode := getArgs()
 
@@ -178,21 +213,58 @@ func main() {
 
 			switch lineType {
 			case SeedsLine:
-				seeds = parseSeeds(line)
+				seeds = parseSeedsPart1(line)
 
 			case MapLine:
 				currentState++
 				continue
 
 			case NumLine:
-				nums := strToIntSlice(line)
+				nums := stringToIntSlice(line)
 				dest, src, length := nums[0], nums[1], nums[2]
 
 				updateMappingsForCurrState(dest, src, length, currentState, &mappings)
 			}
 		}
 
-		minLocation := getMinLocationForSeeds(seeds, mappings)
+		minLocation := getMinLocationForSeedsPart1(seeds, mappings)
+
+		fmt.Println("SOLUTION:", minLocation)
+	}
+
+	if part == 2 {
+		var seeds []SeedInterval
+		mappings := [7][]MappingInterval{}
+
+		currentState := ListSeeds
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			if line == "" {
+				continue
+			}
+
+			lineType := getLineType(line)
+
+			switch lineType {
+			case SeedsLine:
+				seeds = parseSeedsPart2(line)
+
+			case MapLine:
+				currentState++
+				continue
+
+			case NumLine:
+				nums := stringToIntSlice(line)
+				dest, src, length := nums[0], nums[1], nums[2]
+
+				updateMappingsForCurrState(dest, src, length, currentState, &mappings)
+			}
+		}
+
+		minLocation := getMinLocationForSeedsPart2(seeds, mappings)
 
 		fmt.Println("SOLUTION:", minLocation)
 	}
