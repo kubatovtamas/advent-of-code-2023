@@ -1,3 +1,4 @@
+import math
 import re
 import sys
 from typing import Iterator
@@ -60,25 +61,22 @@ def count_series_points(time_avail: int, dist_record: int) -> int:
     return int(num_points)
 
 
+def parse_input_line(line: str) -> list[int]:
+    nums_strs = re.findall(r"\d+", line)
+    nums = [int(num) for num in nums_strs]
+
+    return nums
+
+
 def main():
     part, mode = get_args()
 
     if part == 1:
-        line_nums: list[list[int]] = []
-        for line in read_input(mode):
-            numbers = re.findall(r"\d+", line)
-            numbers = [int(num) for num in numbers]
-            line_nums.append(numbers)
+        times, dists = [parse_input_line(line) for line in read_input(mode)]
 
-        total = 1
-        times = line_nums[0]
-        dists = line_nums[1]
+        solution = math.prod(count_series_points(t, d) for t, d in zip(times, dists))
 
-        for time, dist in zip(times, dists):
-            num_points = count_series_points(time, dist)
-            total *= num_points
-
-        print("SOLUTION:", total)
+        print("SOLUTION:", solution)  # 781200
 
     if part == 2:
         for line in read_input(mode):
