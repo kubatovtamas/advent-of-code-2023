@@ -61,26 +61,35 @@ def count_series_points(time_avail: int, dist_record: int) -> int:
     return int(num_points)
 
 
-def parse_input_line(line: str) -> list[int]:
-    nums_strs = re.findall(r"\d+", line)
-    nums = [int(num) for num in nums_strs]
+def parse_input_line_part1(line: str) -> list[int]:
+    num_strs = re.findall(r"\d+", line)
+    nums = [int(num) for num in num_strs]
 
     return nums
+
+
+def parse_input_line_part2(line: str) -> int:
+    num_strs = re.findall(r"\d+", line)
+    num = int("".join(num_strs))
+
+    return num
 
 
 def main():
     part, mode = get_args()
 
     if part == 1:
-        times, dists = [parse_input_line(line) for line in read_input(mode)]
+        times, dists = [parse_input_line_part1(line) for line in read_input(mode)]
 
         solution = math.prod(count_series_points(t, d) for t, d in zip(times, dists))
 
         print("SOLUTION:", solution)  # 781200
 
     if part == 2:
-        for line in read_input(mode):
-            print(line)
+        time, dist = [parse_input_line_part2(line) for line in read_input(mode)]
+        solution = count_series_points(time, dist)
+
+        print("SOLUTION:", solution)  # 49240091
 
 
 if __name__ == "__main__":
