@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from typing import Iterator
 
 
@@ -21,7 +22,8 @@ def get_args() -> tuple[int, str]:
 
 
 def read_input(name: str) -> Iterator[str]:
-    with open(f"../input/{name}", "r") as f:
+    file_path = Path(__file__).parent / ".." / "input" / name
+    with open(file_path, "r") as f:
         for line in f:
             yield line.rstrip()
 
@@ -29,11 +31,11 @@ def read_input(name: str) -> Iterator[str]:
 def main():
     part, mode = get_args()
 
-    if part == 1:
+    if part == 0:
         for line in read_input(mode):
             print(line)
 
-    if part == 2:
+    if part == 1:
         for line in read_input(mode):
             print(line)
 
