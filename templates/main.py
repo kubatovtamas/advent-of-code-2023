@@ -31,11 +31,11 @@ def read_input(name: str) -> Iterator[str]:
 def main():
     part, mode = get_args()
 
-    if part == 0:
+    if part == 1:
         for line in read_input(mode):
             print(line)
 
-    if part == 1:
+    if part == 2:
         for line in read_input(mode):
             print(line)
 
