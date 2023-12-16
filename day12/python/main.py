@@ -85,18 +85,13 @@ def count_valid_arrangements(symbols: str, nums: tuple[int, ...]) -> int:
             # Count '?' as '#'
             unk_counted_as_hash = 0
             if nums:
-                # Calculate the length of consecutive '#'s
-                counter = 0
-                for char in symbols:
-                    if char == "." or counter == nums[0]:
-                        break
-                    counter += 1
+                len_hashes = count_len_hashes(symbols, nums)
 
                 # Validate and recurse if '#' sequence is valid
-                if counter == nums[0]:
-                    if counter == len(symbols) or symbols[counter] != "#":
+                if len_hashes == nums[0]:
+                    if len_hashes == len(symbols) or symbols[len_hashes] != "#":
                         unk_counted_as_hash += count_valid_arrangements(
-                            symbols[counter + 1 :], nums[1:]
+                            symbols[len_hashes + 1 :], nums[1:]
                         )
 
             return unk_counted_as_dot + unk_counted_as_hash
@@ -107,21 +102,16 @@ def count_valid_arrangements(symbols: str, nums: tuple[int, ...]) -> int:
                 # Invalid arrangement if no numbers left
                 return 0
 
-            # Calculate the length of consecutive '#'s
-            counter = 0
-            for char in symbols:
-                if char == "." or counter == nums[0]:
-                    break
-                counter += 1
+            len_hashes = count_len_hashes(symbols, nums)
 
             # Validate and recurse if '#' sequence is valid
-            if counter == nums[0]:
-                if counter == len(symbols) or symbols[counter] != "#":
-                    return count_valid_arrangements(symbols[counter + 1 :], nums[1:])
+            if len_hashes == nums[0]:
+                if len_hashes == len(symbols) or symbols[len_hashes] != "#":
+                    return count_valid_arrangements(symbols[len_hashes + 1 :], nums[1:])
+
             return 0
 
         case _:
-            # Handle invalid symbol
             raise RuntimeError("Invalid symbol in input:", symbols[0])
 
 
