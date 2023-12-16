@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["1", "example"]
+            "args": ["2", "example"]
         },
         {
             "name": "Launch Package",
