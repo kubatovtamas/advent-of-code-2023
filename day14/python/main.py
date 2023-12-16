@@ -52,7 +52,7 @@ def run_sim_north(inp_lines: list[str]) -> list[str]:
         # 1. Insert line without round rocks
         transformed_lines.insert(0, line.replace("O", "."))
 
-        # 2. Collect sq rock indexes, modify mask that counts round rocks encountered
+        # 2. Collect '#'s indexes, modify mask that counts 'O's encountered
         square_rock_idxs: list[int] = []
         for i, ch in enumerate(line):
             if ch == "O":
@@ -99,30 +99,9 @@ def count_total_load(lines: list[str]) -> int:
     return total
 
 
-def run_length_encode(matrix: list[str]):
-    encoding: list[str] = []
-    last_char = matrix[0][0]
-    count = 0
-
-    for row in matrix:
-        for char in row:
-            if char == "\n":
-                continue
-
-            if char == last_char:
-                count += 1
-            else:
-                encoding.append(f"{count}{last_char}")
-                last_char = char
-                count = 1
-
-    # Adding the last character and its count
-    encoding.append(f"{count}{last_char}")
-
-    return "".join(encoding)
-
-
 def main():
+    num_cycles = 1_000_000_000
+    # num_cycles = 15
     part, mode = get_args()
 
     if part == 1:
@@ -138,40 +117,38 @@ def main():
         matrix_configurations: list[str] = []
         loads: list[int] = []
 
-        north_matrix = lines
-        for cycle in range(1_000_000_000):
+        matrix = lines
+        for cycle in range(num_cycles):
             print("Running cycle:", cycle)
 
-            north_matrix = run_sim_north(north_matrix)
+            for i in range(4):
+                matrix = run_sim_north(matrix)
+                matrix = rotate_matrix_90_degrees(matrix)
 
-            west_matrix = rotate_matrix_90_degrees(north_matrix)
-            west_matrix = run_sim_north(west_matrix)
+            encoded_sim_res = "".join(matrix)
 
-            south_matrix = rotate_matrix_90_degrees(west_matrix)
-            south_matrix = run_sim_north(south_matrix)
+            for i in range(len(matrix_configurations)):
+                if matrix_configurations[i] == encoded_sim_res:
+                    loads = loads[i:]
 
-            east_matrix = rotate_matrix_90_degrees(south_matrix)
-            east_matrix = run_sim_north(east_matrix)
+                    remaining = num_cycles - cycle - 1
 
-            north_matrix = rotate_matrix_90_degrees(east_matrix)
+                    idx = remaining % len(loads)
 
-            load_after_cycle = count_total_load(north_matrix)
+                    # print("matrix configs=", list(range(len(matrix_configurations))))
+                    # print("loads=", loads)
+                    # print("repeating element at:", i)
+                    # print("found in cycle:", cycle)
+                    # print("cycle len:", cycle_len)
+                    # print("remaining steps:", remaining)
+                    # print("idx:", idx)
+                    print("SOLUTION:", loads[idx])
+                    return
+
+            load_after_cycle = count_total_load(matrix)
             loads.append(load_after_cycle)
 
-            for row in north_matrix:
-                print(row)
-            print()
-
-            encoded_sim_res = run_length_encode(north_matrix)
-            # encoded_sim_res = "".join(north_matrix)
-            if encoded_sim_res in matrix_configurations:
-                cycle_len = len(matrix_configurations)
-                print("cycle len=", cycle_len)
-                return
-            else:
-                matrix_configurations.append(encoded_sim_res)
-
-        # print("SOLUTION:", total_load)
+            matrix_configurations.append(encoded_sim_res)
 
 
 if __name__ == "__main__":
